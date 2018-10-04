@@ -1,9 +1,16 @@
+import json
 from dagon import Workflow
 from dagon import batch
 
 if __name__ == '__main__':
 
-  workflow=Workflow("demo")
+  config={
+    "scratch_dir_base":"/tmp/",
+    "remove_dir":False
+  }
+
+  # Create the orchestration workflow
+  workflow=Workflow("Taskflow-Demo",config)
 
   taskA=batch.Batch("Tokio","/bin/hostname >tokio.out")
   taskB=batch.Batch("Berlin","/bin/date")
@@ -19,6 +26,11 @@ if __name__ == '__main__':
   taskC.add_dependency_to(taskA)
   taskD.add_dependency_to(taskB)
   taskD.add_dependency_to(taskC)
+
+  jsonWorkflow=workflow.asJson()
+  with open('taskflow-demo.json', 'w') as outfile:
+    stringWorkflow=json.dumps(jsonWorkflow,sort_keys=True, indent=2)
+    outfile.write(stringWorkflow)
   
   workflow.run()
   
