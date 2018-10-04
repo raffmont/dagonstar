@@ -1,0 +1,20 @@
+{
+  "tasks": [
+    {
+      "command": "ls > f1.txt", 
+      "name": "Tokio"
+    }, 
+    {
+      "command": "echo Soy Berlin > f2.txt; cat workflow://Tokio/f1.txt >> f2.txt", 
+      "name": "Berlin"
+    }, 
+    {
+      "command": "echo $RANDOM > f2.txt; cat workflow://Tokio/f1.txt >> f2.txt", 
+      "name": "Nairobi"
+    }, 
+    {
+      "command": "cat workflow://Berlin/f2.txt workflow://Nairobi/f2.txt > f3.txt", 
+      "name": "Mosco"
+    }
+  ]
+}
