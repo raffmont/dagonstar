@@ -4,7 +4,7 @@ from threading import Thread
 import logging
 from logging.config import fileConfig
 
-from yawe import Status
+from dagon import Status
 
 class Task(Thread):
 
