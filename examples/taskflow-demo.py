@@ -1,5 +1,5 @@
-from yawe import Workflow
-from yawe import batch
+from dagon import Workflow
+from dagon import batch
 
 if __name__ == '__main__':
 
