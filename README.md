@@ -3,6 +3,12 @@ DAGon\* is a simple Python based workflow engine able to run job on everything f
 
 *** Installation ***
 
-virtualenv venv
-. venv/bin/activate
-pip install -r requirements.txt
+	virtualenv venv
+	. venv/bin/activate
+	pip install -r requirements.txt
+
+*** Demo ***
+
+taskflow-demo.py	Task oriented workflow
+dataflow-demo.py	Data oriented workflow
+
