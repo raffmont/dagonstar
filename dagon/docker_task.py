@@ -13,10 +13,15 @@ from . import Workflow
 
 class Docker(Task):
 
-    def __init__(self,name,command,working_dir=None):
+    #Params:
+    # 1) name: task name
+    # 2) command: command to be executed
+    # 3) image: docker image which the container is going to be created
+    def __init__(self,name,command,image,working_dir=None):
         Task.__init__(self,name)
         self.command=command
         self.working_dir=working_dir
+        self.image=image
 
     def asJson(self):
         jsonTask=Task.asJson(self)
@@ -110,11 +115,11 @@ class Docker(Task):
 
         # Apply some command post processing
         #command=self.post_process_command(command)
-        print command
+        #print command
         # Execute the bash command
         
         client = docker.DockerClient(base_url='unix://var/run/docker.sock')
-        self.result=client.containers.run("ubuntu", command)
+        self.result=client.containers.run(self.image, command)
 
         localcommand = self.pre_process_command
 
