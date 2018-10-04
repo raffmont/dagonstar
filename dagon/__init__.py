@@ -15,7 +15,7 @@ class Workflow(object):
   SCHEMA="workflow://"
 
   def __init__(self,name,cfg):
-    fileConfig('yawe.ini')
+    fileConfig('dagon.ini')
     self.logger = logging.getLogger()
 
     self.name=name
