@@ -1,5 +1,5 @@
-from yawe import Workflow
-from yawe import batch
+from dagon import Workflow
+from dagon import batch
 import json
 import sys
 import datetime
@@ -9,7 +9,7 @@ import os.path
 if __name__ == '__main__':
 
   config={
-    "scratch_dir_base":"/home/ccmmma/dev/yawe/tmp/",
+    "scratch_dir_base":"/tmp/",
     "remove_dir":False
   }
 
