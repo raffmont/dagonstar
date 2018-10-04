@@ -9,7 +9,7 @@ import os.path
 if __name__ == '__main__':
 
   config={
-    "scratch_dir_base":"/tmp/",
+    "scratch_dir_base":"test/",
     "remove_dir":False
   }
 
@@ -17,7 +17,7 @@ if __name__ == '__main__':
   workflow=Workflow("DataFlow-Demo",config)
   
   # The task a
-  taskA=batch.Batch("Tokio","echo $RANDOM > f1.txt")
+  taskA=batch.Batch("Tokio","ls > f1.txt")
   
   # The task b
   taskB=batch.Batch("Berlin","echo $RANDOM > f2.txt; cat workflow://Tokio/f1.txt >> f2.txt")
