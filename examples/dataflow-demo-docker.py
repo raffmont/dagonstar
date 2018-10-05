@@ -10,7 +10,7 @@ import os.path
 if __name__ == '__main__':
 
   config={
-    "scratch_dir_base":"test/",
+    "scratch_dir_base":"/tmp/test/",
     "remove_dir":False
   }
 
@@ -18,16 +18,16 @@ if __name__ == '__main__':
   workflow=Workflow("DataFlow-Demo",config)
   
   # The task a
-  taskA=batch.Batch("Tokio","ls > f1.txt")
+  taskA=dt.Docker("Tokio","echo Soy Tokio > f1.txt", "ubuntu")
   
   # The task b
-  taskB=batch.Batch("Berlin","echo Soy Berlin > f2.txt; cat workflow://Tokio/f1.txt >> f2.txt")
+  taskB=dt.Docker("Berlin","echo Soy Berlin > f2.txt; cat workflow://Tokio/f1.txt >> f2.txt", "ubuntu")
   
   # The task c
-  taskC=batch.Batch("Nairobi","echo $RANDOM > f2.txt; cat workflow://Tokio/f1.txt >> f2.txt")
+  taskC=dt.Docker("Nairobi","echo $RANDOM > f2.txt; cat workflow://Tokio/f1.txt >> f2.txt", "ubuntu")
   
   # The task d
-  taskD=batch.Batch("Mosco","cat workflow://Berlin/f2.txt workflow://Nairobi/f2.txt > f3.txt")
+  taskD=dt.Docker("Mosco","cat workflow://Berlin/f2.txt workflow://Nairobi/f2.txt > f3.txt", "ubuntu")
   
   # add tasks to the workflow
   workflow.add_task(taskA)
