@@ -18,10 +18,11 @@ if __name__ == '__main__':
   workflow=Workflow("DataFlow-Demo",config)
   
   # The task a
-  taskA=dt.Docker("Tokio","echo Soy Tokio > f1.txt", "ubuntu")
+  taskA=dt.Docker("Tokio","echo Soy Tokio > f1.txt", "ubuntu","tcp://saturn.uniparthenope.it:2375")
   
   # The task b
-  taskB=dt.Docker("Berlin","echo Soy Berlin > f2.txt; cat workflow://Tokio/f1.txt >> f2.txt", "ubuntu")
+  taskB=dt.Docker("Berlin","echo Soy Berlin > f2.txt; cat workflow://Tokio/f1.txt >> f2.txt", 
+                    "ubuntu")
   
   # The task c
   taskC=dt.Docker("Nairobi","echo $RANDOM > f2.txt; cat workflow://Tokio/f1.txt >> f2.txt", "ubuntu")
