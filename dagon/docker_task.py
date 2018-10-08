@@ -17,11 +17,14 @@ class Docker(Task):
     # 1) name: task name
     # 2) command: command to be executed
     # 3) image: docker image which the container is going to be created
-    def __init__(self,name,command,image,working_dir=None):
+    # 4) host: URL of the host, by default use the unix local host
+    def __init__(self,name,command,image,host='unix://var/run/docker.sock',working_dir=None):
         Task.__init__(self,name)
         self.command=command
         self.working_dir=working_dir
         self.image=image
+        self.host = host
+        self.isRemote = host.startswith("tcp")
 
     def asJson(self):
         jsonTask=Task.asJson(self)
@@ -81,9 +84,24 @@ class Docker(Task):
             shutil.move(self.working_dir,self.working_dir+"-removed")
             self.workflow.logger.debug("Removed %s",self.working_dir)
 
+    # Creates a container on remote host
+    def createContainer(self, client, command):
+        container = None
+        #print self.workflow.get_scratch_dir_base()
+        if(self.isRemote):
+            container=client.containers.run(self.image, "sh -c \'"+command+"\'",
+             volumes={self.working_dir:
+             {'bind' : self.working_dir, 'mode':'rw'}},detach=True)
+        else:
+            container=client.containers.run(self.image, "sh -c \'"+command+"\'",
+             volumes={self.workflow.get_scratch_dir_base():
+             {'bind' : self.workflow.get_scratch_dir_base(), 'mode':'rw'}},detach=True)
+        return container
+
+
     # Method overrided 
     def execute(self):
-      
+        print self.command
         if self.working_dir is None:
             # Set a scratch directory as working directory
             self.working_dir = self.workflow.get_scratch_dir_base()+"/"+self.get_scratch_name()
@@ -109,6 +127,7 @@ class Docker(Task):
         # Get the arguments splitted by the schema
         args=command.split(Workflow.SCHEMA)
         wd = self.working_dir
+        
         for i in range(1,len(args)):
             # Split each argument in elements by the slash
             elements=args[i].split("/")
@@ -122,19 +141,23 @@ class Docker(Task):
                 wd = task.working_dir
                 # Substitute the reference by the actual working dir
                 command=command.replace(Workflow.SCHEMA+task.name,task.working_dir)
-
+       
         # Apply some command post processing
         command=self.post_process_command(command)
         #print command
         # Execute the bash command
         
-        client = docker.DockerClient(base_url='unix://var/run/docker.sock')
+        client = docker.DockerClient(base_url=self.host)
+
+        try: #verifies if Docker is running on the server
+            client.ping()
+        except Exception as e:
+            raise Exception('Docker is not running on server ('+self.host+')')
         
 
         try:
-            self.result=client.containers.run(self.image, "sh -c \'"+command+"\'",
-             volumes={self.workflow.get_scratch_dir_base():{'bind' : self.workflow.get_scratch_dir_base(), 'mode':'rw'}},detach=True)
-            
+            self.result=self.createContainer(client,command)
+            print "logs",self.result.logs()
         except Exception as e:
             print e
             raise Exception('Executable raised a execption')
