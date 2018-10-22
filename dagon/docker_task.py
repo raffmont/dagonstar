@@ -19,6 +19,8 @@ from Container import Container
 from . import Workflow
 from filesmanager import FilesManager
 
+import pyshm
+
 class Docker(Task):
 
     #Params:
@@ -33,8 +35,6 @@ class Docker(Task):
         self.command=command
         self.working_dir=working_dir
         self.image=image
-        self.ip=ip
-        self.port=port
         self.ip = ip
         self.ssh_username = ssh_username
         self.ssh_password = ssh_password
