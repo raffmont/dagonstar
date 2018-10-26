@@ -19,7 +19,6 @@ from Container import Container
 from . import Workflow
 from filesmanager import FilesManager
 
-import pyshm
 
 class Docker(Task):
 
@@ -85,7 +84,7 @@ class Docker(Task):
 
         self.createWorkingDir()
         print "Creating container"
-        self.container = self.docker_client.run(image="ubuntu:18.04", detach=True, 
+        self.container = self.docker_client.run(image=self.image, detach=True, 
                             volume={"host":self.workflow.get_scratch_dir_base(),
                             "container":self.workflow.get_scratch_dir_base()})
 
@@ -159,8 +158,8 @@ class Docker(Task):
             if task is not None:
                 if(self.isRemote):
                     inputF=re.split("> |>>", elements[1])[0].strip()
-                    FilesManager.putDataInRemote(self.ip, self.ssh_username, self.ssh_password, 
-                                    task.working_dir+"/"+inputF, self.working_dir+"/"+inputF)
+                    FilesManager.putDataInRemote(self.ip, task.working_dir+"/"+inputF, self.working_dir+"/"+inputF,
+                                                    ssh_username=self.ssh_username, ssh_password=self.ssh_password )
                     command=command.replace(Workflow.SCHEMA+task.name,self.working_dir)
                 else:   
                     # Substitute the reference by the actual working dir
@@ -170,11 +169,12 @@ class Docker(Task):
         command=self.post_process_command(command)
         
         # Execute the bash command
+        print command
         try:
             self.result=self.container.exec_in_cont("sh -c \'"+command+"\'")
             if self.isRemote:
-                FilesManager.getDataFromRemote(self.ip, self.ssh_username, self.ssh_password, 
-                                    self.working_dir, self.workflow.get_scratch_dir_base())
+                FilesManager.getDataFromRemote(self.ip, self.working_dir, self.workflow.get_scratch_dir_base(), 
+                                                ssh_username=self.ssh_username, ssh_password=self.ssh_password)
             #pass
         except Exception as e:
             print e
