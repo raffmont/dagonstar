@@ -1,7 +1,8 @@
 
 import ntpath
-from paramiko import SSHClient
+import paramiko
 from scp import SCPClient
+from paramiko import SSHClient
 from fabric.api import local, env, run
 
 class FilesManager:
@@ -12,19 +13,20 @@ class FilesManager:
         return tail or ntpath.basename(head) 
 
     @staticmethod
-    def putDataInRemote(ip, ssh_username, ssh_password, ori, dest):
+    def putDataInRemote(ip, ori, dest, ssh_username=None, ssh_password=None, keypath=None):
         ssh = SSHClient()
-        ssh.load_system_host_keys()
-        ssh.connect(ip, username=ssh_username,password=ssh_password)
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(ip, username=ssh_username,password=ssh_password, key_filename=keypath)
         scp = SCPClient(ssh.get_transport())
         scp.put(ori,dest, recursive=True)
         scp.close()
 
     @staticmethod
-    def getDataFromRemote(ip, ssh_username, ssh_password, ori, dest):
+    def getDataFromRemote(ip, ori, dest, ssh_username=None, ssh_password=None, keypath=None):
+        print ip,ssh_username,keypath
         ssh = SSHClient()
-        ssh.load_system_host_keys()
-        ssh.connect(ip, username=ssh_username,password=ssh_password)
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(ip, username=ssh_username,password=ssh_password, key_filename=keypath)
         scp = SCPClient(ssh.get_transport())
         scp.get(ori, recursive=True, local_path=dest)
         scp.close()
