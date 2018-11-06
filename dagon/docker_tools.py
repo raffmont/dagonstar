@@ -6,15 +6,9 @@ import time
 
 class DockerClient(object):
     
-    def __init__(self,ip=None,ssh_username=None,ssh_password=None):
-        self.ip = ip
-        self.ssh_username = ssh_username
-        self.ssh_password = ssh_password
-        self.isLocal = ip == None
-        if not self.isLocal:
-            self.ssh = SSHClient()
-            self.ssh.load_system_host_keys()
-            self.ssh.connect(self.ip, username=self.ssh_username,password=self.ssh_password)
+    def __init__(self,ssh_client=None):
+        self.isLocal = ssh_client == None
+        self.ssh = ssh_client
     
     def run(self, image, command=None, volume=None, ports=None, detach=False):
         docker_command = "docker run"
@@ -32,7 +26,6 @@ class DockerClient(object):
             docker_command += " " +command
         
         output = self.exec_command(docker_command)
-
         if detach:
             self.cont_key = output.strip()
             return Container(self.cont_key, self)
@@ -54,10 +47,11 @@ class DockerClient(object):
             else:
                 stdin, stdout, stderr = self.ssh.exec_command(command, get_pty=True)
                 res = ""
-                #for line in iter(stdout.readline, ""):
-                 #   res += line
+                for line in iter(stdout.readline, ""):
+                    res += line
                 stderr = stderr.read()
+                print stderr, res
                 if not stderr.strip():
-                    return stdout.read()
+                    return res
                 else:
                     raise Exception(stderr)

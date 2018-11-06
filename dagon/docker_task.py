@@ -14,11 +14,12 @@ from os import path
 
 
 from task import Task
-from docker_tools import DockerClient
-from Container import Container
 from . import Workflow
-from filesmanager import FilesManager
-
+from Container import Container
+from filesmanager import SCPManager
+from filesmanager import DataTransfer
+from docker_tools import DockerClient
+from cloud_manager import CloudManager
 
 class Docker(Task):
 
@@ -27,24 +28,40 @@ class Docker(Task):
     # 2) command: command to be executed
     # 3) image: docker image which the container is going to be created
     # 4) host: URL of the host, by default use the unix local host
-    def __init__(self,name,command,image,
+    def __init__(self,name,command,image=None, containerID=None,
                  ip=None,port=None,ssh_username=None,
-                 ssh_password=None,working_dir=None):
+                 keypath=None,working_dir=None,endpoint=None):
         Task.__init__(self,name)
         self.command=command
         self.working_dir=working_dir
+        self.containerID=containerID
         self.image=image
         self.ip = ip
+        print self.ip
+        self.endpoint = endpoint
         self.ssh_username = ssh_username
-        self.ssh_password = ssh_password
+        self.keypath = keypath
         self.isRemote = not ip == None
-        self.docker_client = DockerClient(ip=ip, ssh_username=ssh_username, ssh_password=ssh_password)
-        
+        if(self.isRemote):  
+            self.ssh_client = CloudManager.getSSHConnection(ip, ssh_username, keypath)
+            self.docker_client = DockerClient(ssh_client=self.ssh_client)
+            if endpoint is not None and CloudManager.isPortOpen(ip,2811) and CloudManager.isPortOpen(ip,7512):
+                self.transfer = DataTransfer.GLOBUS
+            else:
+                self.transfer = DataTransfer.SCP
+        else:
+            self.docker_client = DockerClient()
 
     def asJson(self):
         jsonTask=Task.asJson(self)
         jsonTask['command']=self.command
         return jsonTask
+
+    def getSSHClient(self):
+        return self.ssh_connection
+    
+    def getEndpoint(self):
+        return self.endpoint
 
     # Increment the reference count
     def increment_reference_count(self):
@@ -83,10 +100,16 @@ class Docker(Task):
                 task.increment_reference_count()
 
         self.createWorkingDir()
-        print "Creating container"
-        self.container = self.docker_client.run(image=self.image, detach=True, 
+        
+        
+        if(self.containerID is None):
+            print "Creating container"
+            self.container = self.docker_client.run(image=self.image, detach=True, 
                             volume={"host":self.workflow.get_scratch_dir_base(),
                             "container":self.workflow.get_scratch_dir_base()})
+        else:
+            print "Getting container"
+            self.container = Container(self.containerID, self.docker_client)
 
 
     def createWorkingDir(self):
@@ -96,7 +119,7 @@ class Docker(Task):
 
             # Create scratch directory
             if self.isRemote:
-                FilesManager.mkdirRemote(self.working_dir, self.ip, self.ssh_username, self.ssh_password)
+                self.docker_client.exec_command("mkdir -p " + self.working_dir)
             else:
                 os.makedirs(self.working_dir)
 
@@ -121,15 +144,12 @@ class Docker(Task):
         if self.reference_count==0 and self.remove_scratch_dir is True:
         # Remove the scratch directory
         #shutil.rmtree(self.working_dir)
-            shutil.move(self.working_dir,self.working_dir+"-removed")
+            #shutil.move(self.working_dir,self.working_dir+"-removed")
             if self.isRemote: self.remove_remote_scratch()
             self.workflow.logger.debug("Removed %s",self.working_dir)
 
     def remove_remote_scratch(self):
-        env.host_string = self.ip
-        env.user = self.ssh_username
-        env.password = self.ssh_password
-        run('mv {0} {1}'.format(self.working_dir, self.working_dir+"-removed"))
+        self.docker_client.exec_command('mv {0} {1}'.format(self.working_dir, self.working_dir+"-removed"))
 
      # Method overrided 
     def execute(self):
@@ -158,8 +178,9 @@ class Docker(Task):
             if task is not None:
                 if(self.isRemote):
                     inputF=re.split("> |>>", elements[1])[0].strip()
-                    FilesManager.putDataInRemote(self.ip, task.working_dir+"/"+inputF, self.working_dir+"/"+inputF,
-                                                    ssh_username=self.ssh_username, ssh_password=self.ssh_password )
+                    scpM = SCPManager()
+                    scpM.putDataInRemote(self.ssh_client, task.working_dir+"/"+inputF, self.working_dir+"/"+inputF)
+                    #SCPManager.copyData(self.ssh_client, task.working_dir+"/"+inputF, self.working_dir+"/"+inputF)
                     command=command.replace(Workflow.SCHEMA+task.name,self.working_dir)
                 else:   
                     # Substitute the reference by the actual working dir
@@ -172,9 +193,9 @@ class Docker(Task):
         print command
         try:
             self.result=self.container.exec_in_cont("sh -c \'"+command+"\'")
-            if self.isRemote:
-                FilesManager.getDataFromRemote(self.ip, self.working_dir, self.workflow.get_scratch_dir_base(), 
-                                                ssh_username=self.ssh_username, ssh_password=self.ssh_password)
+            #if self.isRemote:
+                #scpM = SCPManager()
+                #scpM.getDataFromRemote(self.ssh_client,  self.working_dir, self.workflow.get_scratch_dir_base())
             #pass
         except Exception as e:
             print e
