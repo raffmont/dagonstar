@@ -1,4 +1,4 @@
-from filesmanager import FilesManager
+from filesmanager import SCPManager
 
 class Container(object):
     
@@ -44,13 +44,14 @@ class Container(object):
             return False
         return True
 
-    def cp(self, ori, dest, destServer=None):
+    """def cp(self, ori, dest, destServer=None):
         if self.client.isLocal:
             return self.__copy2cont(ori, dest)
         else:
             if destServer == None: raise Exception("Route in server no specified")
-            FilesManager.putDataInRemote(self.client.ip, self.client.ssh_username, self.client.ssh_password, ori, destServer)
-            contOri = destServer + "/" +  FilesManager.path_leaf(ori)
-            return self.__copy2cont(contOri, dest)
+            scpM = SCPManager()
+            scpM.putDataInRemote(self.client.ip, self.client.ssh_username, self.client.ssh_password, ori, destServer)
+            contOri = destServer + "/" +  SCPManager.path_leaf(ori)
+            return self.__copy2cont(contOri, dest)"""
 
     
