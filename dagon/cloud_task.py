@@ -9,8 +9,7 @@ from filesmanager import GlobusManager
 from cloud_manager import CloudManager
 
 class CloudTask(Task):
-    def __init__(self, name, command, provider, params, ssh_username, keypath=None,keyparams=None, create_instance=True, 
-                 flavour=None, working_dir=None, local_working_dir=None,instance_name=None, id=None, endpoint=None):
+    def __init__(self, name, command, provider, params, ssh_username, keypath=None,keyparams=None, create_instance=True, flavour=None, working_dir=None, local_working_dir=None,instance_name=None, id=None, endpoint=None):
         Task.__init__(self,name)
         self.command=command
         self.working_dir=working_dir
@@ -26,6 +25,9 @@ class CloudTask(Task):
             self.transfer = DataTransfer.GLOBUS
         else:
             self.transfer = DataTransfer.SCP
+    
+    def isTaskRemote(self):
+        return True
     
     def getSSHClient(self):
         return self.ssh_connection
@@ -129,7 +131,6 @@ class CloudTask(Task):
         
         # Get the arguments splitted by the schema
         args=command.split(Workflow.SCHEMA)
-        print "lalalala",args
         for i in range(1,len(args)):
             # Split each argument in elements by the slash
             elements=args[i].split("/")
@@ -139,12 +140,10 @@ class CloudTask(Task):
 
             # Extract the task
             task=self.workflow.find_task_by_name(task_name)
-            print task
             if task is not None:
-                print elements[1]
                 inputF=re.split("> |>>", elements[1])[0].strip()
                 inputF=re.split(" ",inputF)[0].strip()
-                print "yaaa",inputF
+
                 if(self.transfer == DataTransfer.SCP):
                     scpM = SCPManager(task.getSSHClient(), self.ssh_connection)
                     scpM.copyData(task.working_dir+"/"+inputF, self.working_dir+"/"+inputF, self.local_working_dir+"/"+inputF)

@@ -55,10 +55,7 @@ class GlobusManager:
     def path_leaf(path):
         SCPManager.path_leaf(path)
 
-    def copyData(self, ori, dest):
-        #print "xxx", ori, dest
-        authorizer = globus_sdk.AccessTokenAuthorizer(GlobusManager.TRANSFER_TOKEN)
-        tc = globus_sdk.TransferClient(authorizer=authorizer)
+    def copyDirectory(self, ori, dest, tc):
         tdata = globus_sdk.TransferData(tc, self._from,
                                  self._to,
                                  label="SDK example",
@@ -70,9 +67,35 @@ class GlobusManager:
             task = tc.get_task(transfer_result["task_id"])
             if task['nice_status'] != "OK":
                 tc.cancel_task(task["task_id"])
-                raise Exception(task['nice_status'])
-            #else:
-            #    break
+                return task['nice_status']
+        return "OK"
+    
+    def copyFile(self, ori, dest, tc):
+        tdata = globus_sdk.TransferData(tc, self._from,
+                                 self._to,
+                                 label="SDK example",
+                                 sync_level="checksum")
+        
+        tdata.add_item(ori, dest)
+        transfer_result = tc.submit_transfer(tdata)
+        while not tc.task_wait(transfer_result["task_id"], timeout=1):
+            task = tc.get_task(transfer_result["task_id"])
+            if task['nice_status'] != "OK":
+                tc.cancel_task(task["task_id"])
+                return task['nice_status']
+        return "OK"
+
+    def copyData(self, ori, dest):
+        #print "xxx", ori, dest
+        authorizer = globus_sdk.AccessTokenAuthorizer(GlobusManager.TRANSFER_TOKEN)
+        tc = globus_sdk.TransferClient(authorizer=authorizer)
+        res = self.copyDirectory(ori, dest, tc)
+
+        if res == "NOT_A_DIRECTORY":
+            res = self.copyFile(ori, dest, tc)
+        
+        if res is not "OK":
+            raise Exception(res)
 
     @staticmethod
     def mkdirRemote(endpoint, path):
