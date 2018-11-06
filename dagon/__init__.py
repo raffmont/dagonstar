@@ -16,6 +16,7 @@ class Workflow(object):
 
   def __init__(self,name,cfg):
     fileConfig('dagon.ini')
+    logging.getLogger("paramiko").setLevel(logging.WARNING)
     self.logger = logging.getLogger()
 
     self.name=name
