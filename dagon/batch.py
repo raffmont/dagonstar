@@ -9,7 +9,7 @@ from fabric.context_managers import cd
 
 import boto3
 from paramiko import SSHClient
-from scp import SCPClient
+from communication.scp import SCPClient
 
 from task import Task
 from . import Workflow

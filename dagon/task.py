@@ -2,6 +2,7 @@ import datetime
 import time
 from threading import Thread
 import logging
+from dagon import Workflow
 from logging.config import fileConfig
 
 from dagon import Status
@@ -43,10 +44,50 @@ class Task(Thread):
   def add_dependency_to(self,task):
     task.nexts.append(self)
     self.prevs.append(task)
- 
-  # Method to be overrided
+  
+  # Increment the reference count
+  def increment_reference_count(self):
+      self.reference_count=self.reference_count+1
+
+  # Decremet the reference count 
+  def decrement_reference_count(self):
+      self.reference_count=self.reference_count-1
+
+      # Remove the scratch directory
+      self.remove_scratch()
+
+  # Pre process command
+  def pre_process_command(self,command):
+      return "cd "+self.working_dir+";"+command
+
+  # Post process the command
+  def post_process_command(self,command):
+      return command+"|tee ./"+self.name+"_output.txt"
+
+  # Method overrided
   def pre_run(self):
-    pass
+    # For each workflow:// in the command string
+    ### Extract the referenced task
+    ### Add a reference in the referenced task
+
+    # Get the arguments splitted by the schema
+    args=self.command.split(Workflow.SCHEMA)
+    for i in range(1,len(args)):
+        # Split each argument in elements by the slash
+        elements=args[i].split("/")
+
+        # The task name is the first element
+        task_name=elements[0]
+
+        # Extract the task
+        task=self.workflow.find_task_by_name(task_name)
+        if task is not None:
+
+            # Add the dependency to the task
+            self.add_dependency_to(task)
+
+            # Add the reference from the task
+            task.increment_reference_count()
  
   # Method to be overrided 
   def execute(self):
