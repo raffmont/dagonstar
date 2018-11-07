@@ -35,6 +35,9 @@ class CloudTask(Task):
     def getEndpoint(self):
         return self.endpoint
 
+    def getTransferType(self):
+        return self.transfer
+
     def asJson(self):
         jsonTask=Task.asJson(self)
         jsonTask['command']=self.command
@@ -74,7 +77,7 @@ class CloudTask(Task):
         if self.working_dir is None:
             # Set a scratch directory as working directory
             self.working_dir = self.workflow.get_scratch_dir_base()+"/"+self.get_scratch_name()
-            self.local_working_dir = self.workflow.get_scratch_dir_base()+"/"+self.get_scratch_name()
+            self.local_working_dir = self.working_dir
             # Create scratch directory
             if(self.transfer == DataTransfer.SCP):
                 CloudManager.executeCommand(self.ssh_connection, "mkdir -p " + self.working_dir)
@@ -143,13 +146,13 @@ class CloudTask(Task):
             if task is not None:
                 inputF=re.split("> |>>", elements[1])[0].strip()
                 inputF=re.split(" ",inputF)[0].strip()
-
-                if(self.transfer == DataTransfer.SCP):
-                    scpM = SCPManager(task.getSSHClient(), self.ssh_connection)
-                    scpM.copyData(task.working_dir+"/"+inputF, self.working_dir+"/"+inputF, self.local_working_dir+"/"+inputF)
-                else:
+                
+                if task.getTransferType() == DataTransfer.GLOBUS and self.getTransferType() == DataTransfer.GLOBUS:
                     gm = GlobusManager(task.getEndpoint(), self.getEndpoint())
                     gm.copyData(task.working_dir+"/"+inputF, self.working_dir+"/"+inputF)
+                else:
+                    scpM = SCPManager(task.getSSHClient(), self.ssh_connection)
+                    scpM.copyData(task.working_dir+"/"+inputF, self.working_dir+"/"+inputF, self.local_working_dir+"/"+inputF)
                 command=command.replace(Workflow.SCHEMA+task.name,self.working_dir)
                     
         # Apply some command post processing

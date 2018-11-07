@@ -1,5 +1,6 @@
 import json
 import logging
+import logging.config
 from logging.config import fileConfig
 from enum import Enum
 
@@ -17,6 +18,7 @@ class Workflow(object):
   def __init__(self,name,cfg):
     fileConfig('dagon.ini')
     logging.getLogger("paramiko").setLevel(logging.WARNING)
+    logging.getLogger("globus_sdk").setLevel(logging.WARNING)
     self.logger = logging.getLogger()
 
     self.name=name

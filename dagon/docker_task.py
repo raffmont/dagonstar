@@ -18,6 +18,7 @@ from . import Workflow
 from Container import Container
 from filesmanager import SCPManager
 from filesmanager import DataTransfer
+from filesmanager import GlobusManager
 from docker_tools import DockerClient
 from cloud_manager import CloudManager
 
@@ -30,32 +31,40 @@ class Docker(Task):
     # 4) host: URL of the host, by default use the unix local host
     def __init__(self,name,command,image=None, containerID=None,
                  ip=None,port=None,ssh_username=None,
-                 keypath=None,working_dir=None,endpoint=None):
+                 keypath=None,working_dir=None,local_working_dir=None,endpoint=None):
         Task.__init__(self,name)
         self.command=command
         self.working_dir=working_dir
         self.containerID=containerID
         self.image=image
-        self.ip = ip
-        print self.ip
+        self.local_working_dir = local_working_dir if local_working_dir is not None else self.working_dir
+        self.isRemote = not ip == None
+        self.ip = ip if ip is not None else "127.0.0.1"
         self.endpoint = endpoint
         self.ssh_username = ssh_username
         self.keypath = keypath
-        self.isRemote = not ip == None
+        self.ssh_connection = None
         if(self.isRemote):  
-            self.ssh_client = CloudManager.getSSHConnection(ip, ssh_username, keypath)
-            self.docker_client = DockerClient(ssh_client=self.ssh_client)
-            if endpoint is not None and CloudManager.isPortOpen(ip,2811) and CloudManager.isPortOpen(ip,7512):
-                self.transfer = DataTransfer.GLOBUS
-            else:
-                self.transfer = DataTransfer.SCP
+            self.ssh_connection = CloudManager.getSSHConnection(ip, ssh_username, keypath)
+            self.docker_client = DockerClient(ssh_client=self.ssh_connection)
         else:
             self.docker_client = DockerClient()
+
+        if endpoint is not None and CloudManager.isPortOpen(self.ip,2811) and CloudManager.isPortOpen(self.ip,7512):
+            self.transfer = DataTransfer.GLOBUS
+        else:
+            self.transfer = DataTransfer.SCP
 
     def asJson(self):
         jsonTask=Task.asJson(self)
         jsonTask['command']=self.command
         return jsonTask
+
+    def isTaskRemote(self):
+        return self.isRemote
+    
+    def getTransferType(self):
+        return self.transfer
 
     def getSSHClient(self):
         return self.ssh_connection
@@ -116,13 +125,19 @@ class Docker(Task):
         if self.working_dir is None:
             # Set a scratch directory as working directory
             self.working_dir = self.workflow.get_scratch_dir_base()+"/"+self.get_scratch_name()
-
+            self.local_working_dir = self.working_dir
             # Create scratch directory
             if self.isRemote:
-                self.docker_client.exec_command("mkdir -p " + self.working_dir)
+                # Create scratch directory
+                if(self.transfer == DataTransfer.SCP):
+                    CloudManager.executeCommand(self.ssh_connection, "mkdir -p " + self.working_dir)
+                else:
+                    GlobusManager.mkdirRemote(self.endpoint, self.working_dir)
+                os.makedirs(self.local_working_dir)
             else:
+                self.local_working_dir = self.working_dir
                 os.makedirs(self.working_dir)
-
+            
             # Set to remove the scratch directory
             self.remove_scratch_dir=True
         else:
@@ -143,9 +158,8 @@ class Docker(Task):
         # Check if the scratch directory must be removed
         if self.reference_count==0 and self.remove_scratch_dir is True:
         # Remove the scratch directory
-        #shutil.rmtree(self.working_dir)
-            #shutil.move(self.working_dir,self.working_dir+"-removed")
             if self.isRemote: self.remove_remote_scratch()
+            else: shutil.move(self.working_dir,self.working_dir+"-removed")
             self.workflow.logger.debug("Removed %s",self.working_dir)
 
     def remove_remote_scratch(self):
@@ -176,27 +190,26 @@ class Docker(Task):
             # Extract the task
             task=self.workflow.find_task_by_name(task_name)
             if task is not None:
-                if(self.isRemote):
-                    inputF=re.split("> |>>", elements[1])[0].strip()
-                    scpM = SCPManager()
-                    scpM.putDataInRemote(self.ssh_client, task.working_dir+"/"+inputF, self.working_dir+"/"+inputF)
-                    #SCPManager.copyData(self.ssh_client, task.working_dir+"/"+inputF, self.working_dir+"/"+inputF)
+                
+                inputF=re.split("> |>>", elements[1])[0].strip()
+                inputF=re.split(" ",inputF)[0].strip()
+                if task.isTaskRemote():
+                    if task.getTransferType() == DataTransfer.GLOBUS and self.getTransferType() == DataTransfer.GLOBUS:
+                        gm = GlobusManager(task.getEndpoint(), self.getEndpoint())
+                        gm.copyData(task.working_dir+"/"+inputF, self.working_dir+"/"+inputF)
+                    else:
+                        scpM = SCPManager(task.getSSHClient(), self.ssh_connection)
+                        scpM.copyData(task.working_dir+"/"+inputF, self.working_dir+"/"+inputF, self.local_working_dir+"/"+inputF)
                     command=command.replace(Workflow.SCHEMA+task.name,self.working_dir)
-                else:   
-                    # Substitute the reference by the actual working dir
+                else:
                     command=command.replace(Workflow.SCHEMA+task.name,task.working_dir)
                     
         # Apply some command post processing
         command=self.post_process_command(command)
         
         # Execute the bash command
-        print command
         try:
             self.result=self.container.exec_in_cont("sh -c \'"+command+"\'")
-            #if self.isRemote:
-                #scpM = SCPManager()
-                #scpM.getDataFromRemote(self.ssh_client,  self.working_dir, self.workflow.get_scratch_dir_base())
-            #pass
         except Exception as e:
             print e
             raise Exception('Executable raised a execption')

@@ -39,8 +39,11 @@ class SCPManager:
         run('mkdir -p {0}'.format(absolute_path))
 
     def copyData(self, ori, dest, intermedary):
-        self.getDataFromRemote(self._from, ori, intermedary)
-        self.putDataInRemote(self._to, intermedary, dest)
+        if self._to is None:
+            self.getDataFromRemote(self._from, ori, intermedary)
+        else:
+            self.getDataFromRemote(self._from, ori, intermedary)
+            self.putDataInRemote(self._to, intermedary, dest)
 
 
 class GlobusManager:
