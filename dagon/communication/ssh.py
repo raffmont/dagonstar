@@ -14,6 +14,9 @@ class SSHManager:
         self.keypath = keypath
         self.connection = self.getSSHConnection()
 
+    def getConnection(self):
+        return self.connection
+
     #add host to know hosts
     @staticmethod
     def addToKnowHosts(node):
@@ -25,7 +28,7 @@ class SSHManager:
 
     #Return a SSH connection
     def getSSHConnection(self):
-        SSHManager.addToKnowHosts(self.host) #add to know hosts
+        #SSHManager.addToKnowHosts(self.host) #add to know hosts
         ssh = SSHClient()
         ssh.load_system_host_keys()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -37,4 +40,7 @@ class SSHManager:
     #execute command in remothe machine over SSH
     def executeCommand(self, command):
         _, stdout, stderr = self.connection.exec_command(command)
-        return stdout.readlines(), stderr.readlines()
+        stdout = stdout.readlines()
+        stderr = stderr.readlines()
+        code = 0 if len(stderr) == 0 else 1
+        return {"code":code,"output":'\n'.join(stdout),"error":'\n'.join(stderr)}

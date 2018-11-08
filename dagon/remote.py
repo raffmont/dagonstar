@@ -25,6 +25,10 @@ class RemoteTask(Task):
         self.working_dir = working_dir
         self.ssh_username = ssh_username
         self.local_working_dir = local_working_dir
+
+    #only to other tasks know that this is a remote task
+    def isTaskRemote(self):
+        return True
         
     #start ssh connection
     def startSSHConnection(self):
@@ -91,7 +95,7 @@ class DockerRemoteTask(LocalDockerTask,RemoteTask):
         LocalDockerTask.__init__(self, name, command, containerID=containerID, working_dir=working_dir, image=image)
         RemoteTask.__init__(self,name=name, ssh_username=ssh_username, keypath=keypath, command=command, ip=ip, working_dir=working_dir, local_working_dir=local_working_dir, endpoint=endpoint)
         self.startSSHConnection()
-        self.transfer =DataTransfer.inferDataTransportation(self.ip,self.endpoint)
+        self.transfer = DataTransfer.inferDataTransportation(self.ip,self.endpoint)
         self.docker_client = DockerRemoteClient(self.ssh_connection)
 
     #pre_run the task
@@ -110,11 +114,11 @@ class DockerRemoteTask(LocalDockerTask,RemoteTask):
 
 
 class CloudTask(RemoteTask):
-    def __init__(self, name, command, provider, params, ssh_username, keyparams=None, create_instance=True, flavour=None, working_dir=None, local_working_dir=None,instance_name=None, id=None, endpoint=None):
+    def __init__(self, name, command, provider, ssh_username, keyparams=None, create_instance=True, flavour=None, working_dir=None, local_working_dir=None,instance_name=None, id=None, endpoint=None):
         RemoteTask.__init__(self,name=name, ssh_username=ssh_username, keypath=keyparams['keypath'], command=command, working_dir=working_dir, local_working_dir=local_working_dir, endpoint=endpoint)
-
+        print provider
         self.node = CloudManager.getInstance(id=id,keyparams=keyparams,flavour=flavour,
-                   provider=provider,params=params,create_instance=create_instance,name=instance_name)
+                   provider=provider,create_instance=create_instance,name=instance_name)
         self.setIp(self.node.public_ips[0])
         self.startSSHConnection()
         self.transfer = DataTransfer.inferDataTransportation(self.ip,self.endpoint)
@@ -158,14 +162,12 @@ class CloudTask(RemoteTask):
         command=self.post_process_command(command)
         
         # Execute the bash command
-        try:
-            self.result=SSHManager.executeCommand(self.ssh_connection, "sh -c \'"+command+"\'")
-            #SCPManager.getDataFromRemote(self.ssh_connection,self.working_dir, self.workflow.get_scratch_dir_base())
-            #pass
-        except Exception as e:
-            print e
-            raise Exception('Executable raised a execption')
-   
+       
+        self.result=SSHManager.executeCommand(self.ssh_connection, command)
+        if self.result["code"] == 1:
+            raise Exception(self.result["error"].rstrip())
+
+  
         # Remove the reference
         # For each workflow:// in the command
 

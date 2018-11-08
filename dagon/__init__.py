@@ -23,6 +23,7 @@ class Workflow(object):
 
     self.name=name
     self.cfg=cfg
+    print self.cfg
     self.tasks=[]
 
   def get_scratch_dir_base(self):
@@ -62,3 +63,10 @@ class Workflow(object):
     self.logger.debug("Running workflow: %s",self.name)
     for task in self.tasks:
       task.start()
+
+def readConfig(section):
+  import configparser
+  config = configparser.ConfigParser()
+  config.read('dagon.ini')
+  print dict(config.items(section))
+  return dict(config.items(section))

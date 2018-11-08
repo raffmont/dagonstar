@@ -31,12 +31,12 @@ class SCPManager:
         return tail or ntpath.basename(head) 
 
     def putDataInRemote(self, sshClient, ori, dest):
-        scp = SCPClient(sshClient.get_transport())
+        scp = SCPClient(sshClient.getConnection().get_transport())
         scp.put(ori,dest, recursive=True)
         scp.close()
         
     def getDataFromRemote(self,sshClient, ori, dest):
-        scp = SCPClient(sshClient.get_transport())
+        scp = SCPClient(sshClient.getConnection().get_transport())
         scp.get(ori, recursive=True, local_path=dest)
         scp.close()
 

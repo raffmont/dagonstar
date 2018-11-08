@@ -27,21 +27,32 @@ class LocalDockerTask(Task):
         self.image = image
         self.endpoint = endpoint
         self.docker_client = DockerClient()
-        self.data_transfer = DataTransfer.inferDataTransportation("127.0.0.1",self.endpoint)
+        self.transfer = DataTransfer.inferDataTransportation("127.0.0.1",self.endpoint)
+        self.ssh_connection = None
+    
+    #Return the transfer type method (globus, scp)
+    def getTransferType(self):
+        return self.transfer
 
     #Create a Docker container
     def createContainer(self):
+        print self.image
         command = self.strRunCont(image=self.image, detach=True, 
                            volume={"host":self.workflow.get_scratch_dir_base(),
                             "container":self.workflow.get_scratch_dir_base()})
         
         result = self.docker_client.exec_command(command)
-        return result[0].rstrip()
+        if(result['code'] == 1):
+            raise Exception(self.result["error"].rstrip())
+        return result['output']
 
     # Method overrided
     def pre_run(self):
         Task.pre_run(self)
         self.createWorkingDir()
+        if(self.containerID is None):
+            self.containerID  = self.createContainer()
+        self.container = Container(self.containerID, self.docker_client)
 
     def createWorkingDir(self):
         if self.working_dir is None:
@@ -61,7 +72,6 @@ class LocalDockerTask(Task):
     #form string to create container
     def strRunCont(self, image, command=None, volume=None, ports=None, detach=False):
         docker_command = "docker run"
-        
         if(detach):
             docker_command += " -t -d"
 
@@ -126,11 +136,10 @@ class LocalDockerTask(Task):
         command=self.post_process_command(command)
         
         # Execute the bash command
-        try:
-            self.result=self.container.exec_in_cont("sh -c \'"+command+"\'")
-        except Exception as e:
-            print e
-            raise Exception('Executable raised a execption')
+        self.result=self.container.exec_in_cont("sh -c \'"+command+"\'")
+
+        if self.result["code"] == 1:
+            raise Exception(self.result["error"].rstrip())
    
         # Remove the reference
         # For each workflow:// in the command
@@ -158,11 +167,10 @@ class DockerTask(Task):
     def __init__(self):
         print "entro"
 
-    def __new__(cls,name,command,image=None, containerID=None,ip=None,port=None,ssh_username=None,                keypath=None,working_dir=None,local_working_dir=None,endpoint=None):
+    def __new__(cls,name,command,image=None, containerID=None,ip=None,port=None,ssh_username=None, keypath=None,working_dir=None,local_working_dir=None,endpoint=None):
         isRemote = not ip == None
-
         if isRemote:
             return remote.DockerRemoteTask(name,command,image=image,containerID=containerID,ip=ip,ssh_username=ssh_username,working_dir=working_dir,local_working_dir=local_working_dir,endpoint=endpoint,keypath=keypath)
         else:
-            return LocalDockerTask(name, command,containerID=containerID,working_dir=working_dir)
+            return LocalDockerTask(name, command,containerID=containerID,working_dir=working_dir, image=image)
         

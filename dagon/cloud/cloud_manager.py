@@ -12,13 +12,14 @@ from libcloud.compute.types import NodeState
 from libcloud.compute.providers import get_driver
 
 import cloud_manager
+from dagon import readConfig
 
 class CloudManager(object):
 
     @staticmethod
-    def getInstance(keyparams, provider, params, name=None, create_instance=True, flavour=None, id=None):
+    def getInstance(keyparams, provider, name=None, create_instance=True, flavour=None, id=None):
         driver = get_driver(provider)
-        conn = driver(**params)
+        conn = driver(**readConfig(provider))
         manager = globals()[provider.upper()]
         node = manager.createInstance(conn, name, flavour, keyparams) if create_instance else CloudManager.getExistingInstance(conn, id=id, name=name)
         node =CloudManager.waitUntilRunning(conn, node)
